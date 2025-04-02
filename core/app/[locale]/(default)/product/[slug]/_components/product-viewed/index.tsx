@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 
 import { FragmentOf } from '~/client/graphql';
-import { bodl } from '~/lib/bodl';
+import { useAnalytics } from '~/lib/analytics/react';
 
 import { ProductViewedFragment } from './fragment';
 
@@ -27,15 +27,17 @@ const productItemTransform = (p: FragmentOf<typeof ProductViewedFragment>) => {
 };
 
 export const ProductViewed = ({ product }: Props) => {
+  const analytics = useAnalytics();
+
   useEffect(() => {
     const transformedProduct = productItemTransform(product);
 
-    bodl.navigation.productViewed({
+    analytics?.navigation.productViewed({
       product_value: transformedProduct.purchase_price,
       currency: transformedProduct.currency,
       line_items: [transformedProduct],
     });
-  }, [product]);
+  }, [analytics, product]);
 
   return null;
 };
