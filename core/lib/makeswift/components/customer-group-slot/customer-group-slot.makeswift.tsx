@@ -11,7 +11,7 @@ import { runtime } from '~/lib/makeswift/runtime';
 
 import { CustomerGroupSchema, CustomerGroupsSchema, CustomerGroupsType } from './schema';
 
-const NO_GROUP_ID = 'no-group';
+const DEFAULT_GROUP_ID = 'default-group';
 
 async function getAllCustomerGroups(): Promise<CustomerGroupsType | null> {
   const response = await fetch('/api/customer/groups');
@@ -39,31 +39,27 @@ async function fetchCustomerGroupData(): Promise<GetCustomerGroupResponse | unde
   return group;
 }
 
-function UntargetedGroup() {
-  return (
-    <div className="p-4 text-center text-lg text-gray-400">
-      This group needs to be added to "Targeted customer groups".
-    </div>
-  );
-}
-
 function getGroupSlot(
-  allSlots: Array<{ group?: string; slot: ReactNode }> | undefined,
+  targetedSlots: Array<{ group?: string; slot: ReactNode }> | undefined,
   simulateGroup: boolean,
-  simulatedGroup: string,
+  simulatedGroup: string | undefined,
   customerGroupId: number | undefined,
-  noGroupSlot: ReactNode,
+  defaultSlot: ReactNode,
 ): ReactNode {
-  const simulatedSlot = allSlots?.find((s) => s.group === simulatedGroup)?.slot ?? (
-    <UntargetedGroup />
-  );
-  const actualSlot = allSlots?.find((s) => s.group === `${customerGroupId}`)?.slot ?? (
-    <UntargetedGroup />
-  );
+  const customerGroup = customerGroupId || DEFAULT_GROUP_ID;
+  const simulatedSlot =
+    targetedSlots?.find((s) => {
+      if (!s.group) return false;
 
-  if (!customerGroupId && !simulateGroup) {
-    return noGroupSlot;
-  }
+      return s.group === simulatedGroup;
+    })?.slot ?? defaultSlot;
+
+  const actualSlot =
+    targetedSlots?.find((s) => {
+      if (!s.group) return false;
+
+      return s.group === `${customerGroup}`;
+    })?.slot ?? defaultSlot;
 
   return simulateGroup ? simulatedSlot : actualSlot;
 }
@@ -80,11 +76,11 @@ interface Props {
   className: string;
   slots?: Array<{ group?: string; slot: ReactNode }>;
   simulatedGroup?: string;
-  noGroupSlot: ReactNode;
+  defaultSlot: ReactNode;
 }
 
-function CustomerGroupSlot({ className, slots, simulatedGroup = NO_GROUP_ID, noGroupSlot }: Props) {
-  const allSlots = slots?.concat({ group: NO_GROUP_ID, slot: noGroupSlot });
+function CustomerGroupSlot({ className, slots, simulatedGroup, defaultSlot }: Props) {
+  const targetedSlots = slots?.concat({ group: DEFAULT_GROUP_ID, slot: defaultSlot });
   const isInBuilder = useIsInBuilder();
 
   const { data, isLoading, error } = useSWR<GetCustomerGroupResponse | undefined, Error>(
@@ -104,11 +100,11 @@ function CustomerGroupSlot({ className, slots, simulatedGroup = NO_GROUP_ID, noG
 
   const customerGroupId = data?.customer?.customerGroupId;
   const groupSlot = getGroupSlot(
-    allSlots,
+    targetedSlots,
     isInBuilder,
     simulatedGroup,
     customerGroupId,
-    noGroupSlot,
+    defaultSlot,
   );
 
   return <div className={className}>{groupSlot}</div>;
@@ -164,9 +160,9 @@ runtime.registerComponent(CustomerGroupSlot, {
 
           return [
             {
-              id: NO_GROUP_ID,
-              label: 'No group',
-              value: NO_GROUP_ID,
+              id: DEFAULT_GROUP_ID,
+              label: 'Default',
+              value: DEFAULT_GROUP_ID,
             },
             ...data
               .map((d) => ({
@@ -184,6 +180,6 @@ runtime.registerComponent(CustomerGroupSlot, {
         }
       },
     }),
-    noGroupSlot: Slot(),
+    defaultSlot: Slot(),
   },
 });
